@@ -11,6 +11,7 @@
     using Microsoft.ApplicationInsights.DataContracts;
     using Microsoft.ApplicationInsights.DependencyCollector;
     using Microsoft.ApplicationInsights.DependencyCollector.Implementation;
+    using Microsoft.ApplicationInsights.DependencyCollector.W3C;
     using Microsoft.ApplicationInsights.Extensibility;
     using Microsoft.ApplicationInsights.Extensibility.Implementation;
     using Microsoft.ApplicationInsights.TestFramework;
@@ -19,6 +20,8 @@
     using Microsoft.AspNetCore.Hosting;
     using Microsoft.AspNetCore.Http;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+#pragma warning disable 612, 618
 
     /// <summary>
     /// .NET Core specific tests that verify Http Dependencies are collected for outgoing request
@@ -193,6 +196,53 @@
             }
         }
 
+        /// <summary>
+        /// Tests that dependency is collected properly when there is parent activity.
+        /// </summary>
+        [TestMethod]
+        [Timeout(5000)]
+        public async Task TestDependencyCollectionWithW3CHeaders()
+        {
+            using (var module = new DependencyTrackingTelemetryModule())
+            {
+                module.EnableW3CHeadersInjection = true;
+                this.config.TelemetryInitializers.Add(new W3COperationCorrelationTelemetryInitializer());
+                module.Initialize(this.config);
+
+                var parent = new Activity("parent")
+                    .AddBaggage("k", "v")
+                    .SetParentId("|guid.")
+                    .Start()
+                    .GenerateW3CContext();
+
+                var url = new Uri(localhostUrl);
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                using (new LocalServer(localhostUrl))
+                {
+                    await new HttpClient().SendAsync(request);
+                }
+
+                // DiagnosticSource Response event is fired after SendAsync returns on netcoreapp1.*
+                // let's wait until dependency is collected
+                Assert.IsTrue(SpinWait.SpinUntil(() => this.sentTelemetry != null, TimeSpan.FromSeconds(1)));
+
+                parent.Stop();
+
+                string expectedTraceId = parent.Tags.Single(t => t.Key == W3CConstants.TraceIdTag).Value;
+                string expectedParentId = parent.Tags.Single(t => t.Key == W3CConstants.SpanIdTag).Value;
+
+                DependencyTelemetry dependency = this.sentTelemetry.Single();
+                Assert.AreEqual(expectedTraceId, dependency.Context.Operation.Id);
+                Assert.AreEqual(expectedParentId, dependency.Context.Operation.ParentId);
+
+                Assert.IsTrue(request.Headers.Contains(W3CConstants.TraceParentHeader));
+                Assert.AreEqual($"00-{expectedTraceId}-{dependency.Id}-01", request.Headers.GetValues(W3CConstants.TraceParentHeader).Single());
+
+                Assert.IsFalse(request.Headers.Contains(W3CConstants.TraceStateHeader));
+                Assert.AreEqual("v", dependency.Properties["k"]);
+            }
+        }
+
         private void ValidateTelemetryForDiagnosticSource(DependencyTelemetry item, Uri url, HttpRequestMessage request, bool success, string resultCode, bool expectLegacyHeaders)
         {
             Assert.AreEqual(url, item.Data);
@@ -287,4 +337,5 @@
             }
         }
     }
+#pragma warning restore 612, 618
 }

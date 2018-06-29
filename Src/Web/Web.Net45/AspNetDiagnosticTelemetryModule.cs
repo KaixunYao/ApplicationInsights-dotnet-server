@@ -154,16 +154,6 @@
                             // Let's set activity ParentId with custom root id
                             activity.SetParentId(rootId);
                         }
-                        else
-                        {
-                            // This is workaround for the issue https://github.com/Microsoft/ApplicationInsights-dotnet/issues/538
-                            // if there is no parent Activity, ID Activity generates is not random enough to work well with 
-                            // ApplicationInsights sampling algorithm
-                            // This code should go away when Activity is fixed: https://github.com/dotnet/corefx/issues/18418
-                            activity.SetParentId(new RequestTelemetry().Id);
-
-                            // end of workaround
-                        }
                     }
                 }
 

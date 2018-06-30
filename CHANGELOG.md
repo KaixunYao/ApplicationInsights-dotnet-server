@@ -1,5 +1,7 @@
 # Changelog
 
+## Version 2.7.0-beta2
+- [Adds experimental, opt-in support for W3C distributed tracing standard](https://github.com/Microsoft/ApplicationInsights-dotnet-server/pull/945)
 
 ## Version 2.7.0-beta1
 - [Add operation details for HTTP and SQL operation to the dependency telemetry.](https://github.com/Microsoft/ApplicationInsights-dotnet-server/issues/900)

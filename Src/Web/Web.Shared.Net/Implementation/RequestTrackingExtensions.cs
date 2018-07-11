@@ -1,17 +1,13 @@
 ﻿namespace Microsoft.ApplicationInsights.Web.Implementation
 {
     using System;
-#if NET45
     using System.Diagnostics;
-#endif
     using System.Linq;
     using System.Web;
     using Microsoft.ApplicationInsights.Common;
     using Microsoft.ApplicationInsights.DataContracts;
     using Microsoft.ApplicationInsights.W3C;
-#if NET45
     using Microsoft.AspNet.TelemetryCorrelation;
-#endif
 
 #pragma warning disable 612, 618
     internal static class RequestTrackingExtensions

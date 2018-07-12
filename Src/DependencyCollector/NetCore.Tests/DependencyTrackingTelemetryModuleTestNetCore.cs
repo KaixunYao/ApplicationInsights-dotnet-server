@@ -224,7 +224,7 @@
                     .SetParentId("|guid.")
                     .Start()
                     .GenerateW3CContext();
-
+                parent.SetTraceState("state=some");
                 var url = new Uri(localhostUrl);
                 var request = new HttpRequestMessage(HttpMethod.Get, url);
                 using (new LocalServer(localhostUrl))
@@ -249,12 +249,13 @@
                 Assert.AreEqual($"00-{expectedTraceId}-{dependency.Id}-01", request.Headers.GetValues(W3CConstants.TraceParentHeader).Single());
 
                 Assert.IsTrue(request.Headers.Contains(W3CConstants.TraceStateHeader));
-                Assert.AreEqual($"{W3CConstants.ApplicationIdTraceStateField}={expectedAppId}", request.Headers.GetValues(W3CConstants.TraceStateHeader).Single());
+                Assert.AreEqual($"{W3CConstants.ApplicationIdTraceStateField}={expectedAppId},state=some", request.Headers.GetValues(W3CConstants.TraceStateHeader).Single());
 
                 Assert.IsTrue(request.Headers.Contains(RequestResponseHeaders.CorrelationContextHeader));
                 Assert.AreEqual("k=v", request.Headers.GetValues(RequestResponseHeaders.CorrelationContextHeader).Single());
 
                 Assert.AreEqual("v", dependency.Properties["k"]);
+                Assert.AreEqual("state=some", dependency.Properties[W3CConstants.TraceStateTag]);
             }
         }
 
@@ -306,7 +307,7 @@
         /// Tests that dependency is collected properly when there is parent activity.
         /// </summary>
         [TestMethod]
-        [Timeout(5000)]
+        [Timeout(500000)]
         public async Task TestDependencyCollectionWithW3CHeadersWithState()
         {
             using (var module = new DependencyTrackingTelemetryModule())
@@ -334,9 +335,8 @@
 
                 parent.Stop();
 
-                Assert.AreEqual(2, request.Headers.GetValues(W3CConstants.TraceStateHeader).Count());
-                Assert.IsTrue(request.Headers.GetValues(W3CConstants.TraceStateHeader).Contains($"{W3CConstants.ApplicationIdTraceStateField}={expectedAppId}"));
-                Assert.IsTrue(request.Headers.GetValues(W3CConstants.TraceStateHeader).Contains("some=state"));
+                var traceState = HttpHeadersUtilities.GetHeaderValues(request.Headers, W3CConstants.TraceStateHeader).First();
+                Assert.AreEqual($"{W3CConstants.ApplicationIdTraceStateField}={expectedAppId},some=state", traceState);
             }
         }
 
